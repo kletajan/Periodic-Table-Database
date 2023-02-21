@@ -1,20 +1,29 @@
 #!/bin/bash
 
-PSQL="psql -X --username=freecodecamp --dbname=periodic_table --tuples-only -c"
+PSQL="psql -X --username=freecodecamp --dbname=periodic_table --no-align --tuples-only -c"
 
-echo $1
-
-if [[ -z $1 ]]
+#test if we have variable next to load script
+if [[ $1 ]]
 then
-  echo -e "Please provide an element as an argument."
-else
-  ATOMIC_NUMBER=$($PSQL "SELECT atomic_number FROM elements WHERE atomic_number=$1 OR symbol='$1' OR name='$1'")
-  NAME=$($PSQL "SELECT name FROM elements WHERE atomic_number=$ATOMIC_NUMBER")
-  SYMBOL=$($PSQL "SELECT symbol FROM elements WHERE atomic_number=$ATOMIC_NUMBER")
-  
-  echo -e "The element with atomic number$ATOMIC_NUMBER is $NAME ($SYMBOL). It's a nonmetal, with a mass of 1.008 amu. Hydrogen has a melting point of -259.1 celsius and a boiling point of -252.9 celsius."
-  if [[ -z ATOMIC_NUMBER && -z SYMBOL && -z NAME ]]
+#test if variable is a number or not
+  if [[ ! $1 =~ ^[0-9]+$ ]]
   then
-    echo -e "I could not find that element in the database."
+  ELEM=$($PSQL "SELECT atomic_number, atomic_mass, melting_point_celsius, boiling_point_celsius, symbol, name, type FROM properties JOIN elements USING(atomic_number) JOIN types USING(type_id) WHERE elements.name LIKE '$1%' ORDER BY atomic_number LIMIT 1")
+  else
+  ELEM=$($PSQL "SELECT atomic_number, atomic_mass, melting_point_celsius, boiling_point_celsius, symbol, name, type FROM properties JOIN elements USING(atomic_number) JOIN types USING(type_id) WHERE elements.atomic_number=$1")
   fi
+  #if variable is not in database
+    if [[ -z $ELEM ]]
+    then
+      echo "I could not find that element in the database."
+    else
+    #if variable is in database
+      echo $ELEM | while IFS=\| read ATOMIC_NUMBER ATOMIC_MASS MELTING_POINT_CELSIUS BOILING_POINT_CELSIUS SYMBOL NAME TYPE
+      do
+        echo "The element with atomic number $ATOMIC_NUMBER is $NAME ($SYMBOL). It's a $TYPE, with a mass of $ATOMIC_MASS amu. $NAME has a melting point of $MELTING_POINT_CELSIUS celsius and a boiling point of $BOILING_POINT_CELSIUS celsius."
+      done
+    fi
+  else
+  #if variable isnt added in load script
+  echo -e "Please provide an element as an argument."
 fi
